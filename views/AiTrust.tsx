@@ -5,6 +5,7 @@ import { PrimaryButton } from '../components/Button';
 import { ActionCardDisplay } from '../components/ActionCardDisplay';
 import { generateAiTrustSnapshot } from '../services/geminiService';
 import { ActionPlan } from '../types';
+import { StepExplainerModal } from '../components/StepExplainerModal';
 
 interface AiTrustProps {
   onBack: () => void;
@@ -14,6 +15,11 @@ export const AiTrust: React.FC<AiTrustProps> = ({ onBack }) => {
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
+
+  // Explainer Modal State
+  const [explainerOpen, setExplainerOpen] = useState(false);
+  const [explainerStep, setExplainerStep] = useState<string | null>(null);
+  const explainerContext = "AI_TRUST";
 
   const handleGenerate = async () => {
     if (!inputValue.trim()) return;
@@ -30,7 +36,10 @@ export const AiTrust: React.FC<AiTrustProps> = ({ onBack }) => {
     }
   };
 
-  const presets = ["ChatGPT", "Gemini", "Claude", "Midjourney", "Other AI Tool"];
+  const handleStepClick = (step: string) => {
+    setExplainerStep(step);
+    setExplainerOpen(true);
+  };
 
   return (
     <div className="animate-fade-in max-w-3xl mx-auto w-full">
@@ -50,72 +59,61 @@ export const AiTrust: React.FC<AiTrustProps> = ({ onBack }) => {
       {!plan ? (
         <div className="space-y-10">
           <div className="text-center space-y-4">
-            <h2 className="text-3xl md:text-4xl font-bold text-white">Know Before You Paste</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-white">Check Your Tools</h2>
             <p className="text-textSecondary max-w-xl mx-auto">
-              Before you paste sensitive data into an AI tool, get a quick snapshot of how it might handle your information.
+              Enter the name of an AI tool (e.g. "ChatGPT", "Midjourney", "Otter.ai"). We'll generate a privacy & security snapshot.
             </p>
           </div>
 
-          {/* Input Section */}
-          <div className="bg-card p-6 rounded-xl border border-gray-800 shadow-lg">
-            <label className="block text-sm font-medium text-brandBlue uppercase tracking-wider mb-4">
-              Paste the link to an AI tool or website
+          <div className="max-w-xl mx-auto w-full">
+            <label className="block text-sm font-medium text-brandOrange uppercase tracking-wider mb-2">
+              Tool Name or URL
             </label>
-            
-            <div className="relative mb-6">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-500" />
-              </div>
-              <input
+            <div className="relative">
+              <input 
                 type="text"
-                className="block w-full pl-10 pr-3 py-3 border border-gray-700 rounded-lg leading-5 bg-gray-900 text-white placeholder-gray-500 focus:outline-none focus:border-brandBlue focus:ring-1 focus:ring-brandBlue sm:text-sm transition-colors"
-                placeholder="https://example-ai-app.com"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
+                placeholder="e.g. ChatGPT"
+                className="w-full bg-card border border-gray-700 rounded-xl px-5 py-4 text-lg text-white placeholder-gray-600 focus:outline-none focus:border-brandOrange focus:ring-1 focus:ring-brandOrange transition-all pl-12"
+                onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
               />
-            </div>
-
-            <div className="space-y-3">
-              <p className="text-xs text-textSecondary font-medium">Or pick a common tool:</p>
-              <div className="flex flex-wrap gap-2">
-                {presets.map((tool) => (
-                  <button
-                    key={tool}
-                    onClick={() => setInputValue(tool)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                      inputValue === tool
-                        ? 'bg-brandBlue text-black'
-                        : 'bg-gray-800 text-textSecondary hover:text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    {tool}
-                  </button>
-                ))}
-              </div>
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 w-6 h-6" />
             </div>
           </div>
 
-          <div className="flex justify-center">
+          <div className="pt-2 flex justify-center">
             <PrimaryButton 
               onClick={handleGenerate} 
               disabled={!inputValue.trim()}
               isLoading={loading}
-              className="w-full md:w-auto min-w-[240px] !bg-gradient-to-r !from-brandBlue !to-cyan-600 !shadow-cyan-900/20"
+              className="w-full md:w-auto min-w-[240px]"
             >
-              Generate Trust Snapshot
+              Generate Snapshot
             </PrimaryButton>
           </div>
         </div>
       ) : (
         <div>
-          <ActionCardDisplay plan={plan} context="AI Trust Snapshot" />
-           <div className="mt-8 text-center">
-             <button onClick={() => setPlan(null)} className="text-sm text-textSecondary hover:text-white underline">
-               Check Another Tool
-             </button>
+          <ActionCardDisplay 
+            plan={plan} 
+            context={explainerContext} 
+            onStepClick={handleStepClick} 
+          />
+          <div className="mt-8 text-center">
+            <button onClick={() => setPlan(null)} className="text-sm text-textSecondary hover:text-white underline">
+              Search Another Tool
+            </button>
           </div>
         </div>
       )}
+
+      <StepExplainerModal
+        isOpen={explainerOpen}
+        stepText={explainerStep}
+        context={explainerContext}
+        onClose={() => setExplainerOpen(false)}
+      />
     </div>
   );
 };

@@ -1,21 +1,24 @@
-
 import React from 'react';
+import { ChatBot, SelfDefiContext } from './ChatBot';
 
 interface LayoutProps {
   children: React.ReactNode;
+  activeContext: SelfDefiContext;
 }
 
-export const Layout: React.FC<LayoutProps> = ({ children }) => {
+export const Layout: React.FC<LayoutProps> = ({ children, activeContext }) => {
   return (
     <div className="min-h-screen bg-background text-textPrimary font-sans selection:bg-brandOrange selection:text-white bg-glow flex flex-col">
       <main className="flex-grow w-full max-w-5xl mx-auto px-4 py-6 md:py-10 flex flex-col">
         {children}
       </main>
 
+      <ChatBot context={activeContext} />
+
       <footer className="w-full py-8 mt-auto border-t border-gray-800/50 text-center">
         <div className="flex flex-col gap-3 px-4">
           <p className="text-xs md:text-sm text-textSecondary">
-            Self-Defi | SD Advisory Group —{' '}
+            Self Defi - 60 Second Starter —{' '}
             <a 
               href="https://cal.com/selfdeficonsultant/15min" 
               target="_blank" 

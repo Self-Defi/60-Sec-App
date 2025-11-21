@@ -6,6 +6,7 @@ import { PrimaryButton } from '../components/Button';
 import { ActionCardDisplay } from '../components/ActionCardDisplay';
 import { generateCryptoPlan } from '../services/geminiService';
 import { CryptoExperience, CryptoUrgency, ActionPlan } from '../types';
+import { StepExplainerModal } from '../components/StepExplainerModal';
 
 interface SecureCryptoProps {
   onBack: () => void;
@@ -16,6 +17,11 @@ export const SecureCrypto: React.FC<SecureCryptoProps> = ({ onBack }) => {
   const [urgency, setUrgency] = useState<CryptoUrgency | null>(null);
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
+
+  // Explainer Modal State
+  const [explainerOpen, setExplainerOpen] = useState(false);
+  const [explainerStep, setExplainerStep] = useState<string | null>(null);
+  const explainerContext = "SECURE_CRYPTO";
 
   const handleGenerate = async () => {
     if (!experience || !urgency) return;
@@ -30,6 +36,11 @@ export const SecureCrypto: React.FC<SecureCryptoProps> = ({ onBack }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStepClick = (step: string) => {
+    setExplainerStep(step);
+    setExplainerOpen(true);
   };
 
   return (
@@ -126,7 +137,11 @@ export const SecureCrypto: React.FC<SecureCryptoProps> = ({ onBack }) => {
         </div>
       ) : (
         <div>
-          <ActionCardDisplay plan={plan} context="Secure My Crypto" />
+          <ActionCardDisplay 
+            plan={plan} 
+            context={explainerContext} 
+            onStepClick={handleStepClick}
+          />
           <div className="mt-8 text-center">
              <button onClick={() => setPlan(null)} className="text-sm text-textSecondary hover:text-white underline">
                Start Over
@@ -134,6 +149,13 @@ export const SecureCrypto: React.FC<SecureCryptoProps> = ({ onBack }) => {
           </div>
         </div>
       )}
+
+      <StepExplainerModal
+        isOpen={explainerOpen}
+        stepText={explainerStep}
+        context={explainerContext}
+        onClose={() => setExplainerOpen(false)}
+      />
     </div>
   );
 };

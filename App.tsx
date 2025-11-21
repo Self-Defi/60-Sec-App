@@ -5,6 +5,7 @@ import { BackupAccounts } from './views/BackupAccounts';
 import { AiTrust } from './views/AiTrust';
 import { Layout } from './components/Layout';
 import { ViewState } from './types';
+import { SelfDefiContext } from './components/ChatBot';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<ViewState>(ViewState.Home);
@@ -24,8 +25,17 @@ const App: React.FC = () => {
     }
   };
 
+  const getContext = (view: ViewState): SelfDefiContext => {
+    switch (view) {
+      case ViewState.SecureCrypto: return "SECURE_CRYPTO";
+      case ViewState.BackupAccounts: return "BACKUP_ACCOUNTS";
+      case ViewState.AiTrust: return "AI_TRUST";
+      default: return null;
+    }
+  };
+
   return (
-    <Layout>
+    <Layout activeContext={getContext(currentView)}>
       {renderView()}
     </Layout>
   );

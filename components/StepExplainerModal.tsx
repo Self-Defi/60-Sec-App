@@ -1,36 +1,43 @@
 
 import React, { useEffect, useState } from 'react';
 import { X, Loader2, PlayCircle, ExternalLink } from 'lucide-react';
-import { generateStepExplanation } from '../services/geminiService';
+import { generateStepExplainer } from '../services/geminiService';
 import { getVideoUrlForStep } from '../utils/videoUtils';
 
 interface StepExplainerModalProps {
-  stepText: string;
-  context: string;
+  isOpen: boolean;
+  stepText: string | null;
+  context: string | null;
   onClose: () => void;
 }
 
-export const StepExplainerModal: React.FC<StepExplainerModalProps> = ({ stepText, context, onClose }) => {
-  const [loading, setLoading] = useState(true);
+export const StepExplainerModal: React.FC<StepExplainerModalProps> = ({ isOpen, stepText, context, onClose }) => {
+  const [loading, setLoading] = useState(false);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const videoUrl = getVideoUrlForStep(stepText, context);
+  // Early return if not open, but we keep the hook structure consistent by placing it after hooks or handling it via CSS/Null return.
+  // React hooks must execute in same order.
+  
+  const videoUrl = (stepText && context) ? getVideoUrlForStep(stepText, context) : null;
 
   useEffect(() => {
+    if (!isOpen || !stepText || !context) return;
+
     let isMounted = true;
 
     const fetchExplanation = async () => {
       setLoading(true);
       setError(null);
+      setExplanation(null);
       try {
-        const text = await generateStepExplanation(stepText, context);
+        const text = await generateStepExplainer(stepText, context);
         if (isMounted) {
           setExplanation(text);
         }
       } catch (err) {
         if (isMounted) {
-          setError("Sorry, we couldn't generate an explanation at this moment. Please try again later.");
+          setError("We couldn't load this explainer. Please try again.");
         }
       } finally {
         if (isMounted) {
@@ -44,7 +51,7 @@ export const StepExplainerModal: React.FC<StepExplainerModalProps> = ({ stepText
     return () => {
       isMounted = false;
     };
-  }, [stepText, context]);
+  }, [isOpen, stepText, context]);
 
   // Close on backdrop click
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -53,15 +60,17 @@ export const StepExplainerModal: React.FC<StepExplainerModalProps> = ({ stepText
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <div 
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in"
       onClick={handleBackdropClick}
     >
-      <div className="bg-card w-full max-w-lg rounded-xl border border-gray-800 shadow-2xl flex flex-col max-h-[90vh]">
+      <div className="bg-card w-full max-w-lg rounded-xl border border-gray-800 shadow-2xl flex flex-col max-h-[90vh] relative">
         {/* Header */}
         <div className="flex items-start justify-between p-6 border-b border-gray-800">
-          <div>
+          <div className="pr-8">
             <h3 className="text-lg font-bold text-brandOrange mb-1">Step Explainer</h3>
             <p className="text-sm text-textSecondary line-clamp-2 font-medium text-white">
               "{stepText}"
@@ -69,7 +78,7 @@ export const StepExplainerModal: React.FC<StepExplainerModalProps> = ({ stepText
           </div>
           <button 
             onClick={onClose}
-            className="p-2 -mr-2 -mt-2 rounded-full hover:bg-gray-800 transition-colors text-gray-500 hover:text-white"
+            className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-800 transition-colors text-gray-500 hover:text-white"
           >
             <X className="w-5 h-5" />
           </button>
@@ -93,29 +102,27 @@ export const StepExplainerModal: React.FC<StepExplainerModalProps> = ({ stepText
           {loading ? (
             <div className="flex flex-col items-center justify-center py-12 gap-4">
               <Loader2 className="w-8 h-8 text-brandOrange animate-spin" />
-              <p className="text-textSecondary text-sm animate-pulse">Generating simple explanation...</p>
+              <p className="text-textSecondary text-sm animate-pulse">Generating explainer...</p>
             </div>
           ) : error ? (
             <div className="text-center py-8 text-red-400 text-sm">
               {error}
             </div>
           ) : (
-            <div className="prose prose-invert prose-sm max-w-none">
-              <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-                {explanation}
-              </p>
-            </div>
+            <>
+              <div className="prose prose-invert prose-sm max-w-none">
+                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                  {explanation}
+                </p>
+              </div>
+              
+              <div className="mt-8 pt-4 border-t border-gray-800/50">
+                <p className="text-xs text-textSecondary italic text-center">
+                  This is general education only. Always keep your keys and passwords private.
+                </p>
+              </div>
+            </>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-800 bg-gray-900/50 rounded-b-xl flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-gray-800 text-sm font-medium text-white hover:bg-gray-700 border border-gray-700 transition-colors"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>

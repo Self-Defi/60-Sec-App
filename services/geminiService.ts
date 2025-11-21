@@ -1,7 +1,7 @@
-
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Chat } from "@google/genai";
 import { ActionPlan, CryptoExperience, CryptoUrgency, BackupStorage, BackupSecurity } from "../types";
 
+// CRITICAL: Always use process.env.API_KEY for security.
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 const MODEL_NAME = 'gemini-2.5-flash';
 
@@ -18,6 +18,38 @@ const actionPlanSchema = {
     notes: { type: Type.STRING }
   },
   required: ["title", "timeframe", "steps", "notes"]
+};
+
+export const createChatSession = (context: "SECURE_CRYPTO" | "BACKUP_ACCOUNTS" | "AI_TRUST" | null): Chat => {
+  let systemContextInstructions = "";
+  
+  if (context === "SECURE_CRYPTO") {
+    systemContextInstructions = "You are currently assisting the user on the 'Secure My Crypto' page. Focus strictly on cryptocurrency safety, self-custody, wallets, and seed phrases.";
+  } else if (context === "BACKUP_ACCOUNTS") {
+    systemContextInstructions = "You are currently assisting the user on the 'Backup My Accounts' page. Focus strictly on password managers, 2FA, and digital hygiene.";
+  } else if (context === "AI_TRUST") {
+    systemContextInstructions = "You are currently assisting the user on the 'AI Trust Snapshot' page. Focus strictly on AI data privacy, what to paste vs what to hide, and tool safety.";
+  } else {
+    systemContextInstructions = "You are currently on the Home page. You can help with general questions about crypto safety, backups, or AI privacy.";
+  }
+
+  return ai.chats.create({
+    model: 'gemini-3-pro-preview',
+    config: {
+      systemInstruction: `You are the "Self-Defi Security Guide" for the "Self Defi - 60 Second Starter" app.
+      
+      CONTEXT:
+      ${systemContextInstructions}
+
+      HARD RULES:
+      1. NO financial, trading, investment, tax, or legal advice. Refuse respectfully.
+      2. NEVER ask for or generate private keys, seed phrases, passwords, or personal data.
+      3. If asked about off-topic things (cooking, sports, etc.), refuse: "I’m focused on security, backups, and AI trust..."
+      4. Keep answers SHORT (2-5 sentences). Simple English. Actionable.
+      5. Beginner-friendly tone. No hype.
+      `
+    }
+  });
 };
 
 export const generateCryptoPlan = async (experience: CryptoExperience, urgency: CryptoUrgency): Promise<ActionPlan> => {
@@ -66,14 +98,21 @@ export const generateAiTrustSnapshot = async (toolNameOrUrl: string): Promise<Ac
   return await callGemini(prompt);
 };
 
-export const generateStepExplanation = async (stepText: string, context: string): Promise<string> => {
+export const generateStepExplainer = async (stepText: string, context: string): Promise<string> => {
+  // Map technical context keys to human-readable prompts
+  let humanContext = context;
+  if (context === "SECURE_CRYPTO") humanContext = "Secure My Crypto";
+  if (context === "BACKUP_ACCOUNTS") humanContext = "Backup My Accounts";
+  if (context === "AI_TRUST") humanContext = "AI Trust Snapshot";
+
   const prompt = `
-    Context: ${context}
+    Context: ${humanContext}
     Step: "${stepText}"
 
     Explain this crypto / security / AI safety step in simple, non-technical language for a beginner. 
     Keep it under 200 words and include 2–3 very concrete sub-actions they can perform.
     Do not use markdown formatting like bold or headers, just plain text paragraphs.
+    Never ask for or reference private keys, seed phrases, passwords, or personal data.
   `;
 
   try {

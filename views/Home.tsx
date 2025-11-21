@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ViewState } from '../types';
 import { Shield, Key, Eye, ChevronRight } from 'lucide-react';
@@ -35,7 +34,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
   return (
     <div className="flex flex-col items-center pt-8 md:pt-16 animate-fade-in">
       <h1 className="text-3xl md:text-5xl font-bold text-center mb-4 tracking-tight">
-        Self-Defi | 60-Second Starter
+        Self Defi - 60 Second Starter
       </h1>
       
       <p className="text-textSecondary text-center mb-12 max-w-xl text-lg">

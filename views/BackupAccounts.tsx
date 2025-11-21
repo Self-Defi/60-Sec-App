@@ -6,6 +6,7 @@ import { PrimaryButton } from '../components/Button';
 import { ActionCardDisplay } from '../components/ActionCardDisplay';
 import { generateBackupPlan } from '../services/geminiService';
 import { BackupStorage, BackupSecurity, ActionPlan } from '../types';
+import { StepExplainerModal } from '../components/StepExplainerModal';
 
 interface BackupAccountsProps {
   onBack: () => void;
@@ -16,6 +17,11 @@ export const BackupAccounts: React.FC<BackupAccountsProps> = ({ onBack }) => {
   const [security, setSecurity] = useState<BackupSecurity | null>(null);
   const [loading, setLoading] = useState(false);
   const [plan, setPlan] = useState<ActionPlan | null>(null);
+
+  // Explainer Modal State
+  const [explainerOpen, setExplainerOpen] = useState(false);
+  const [explainerStep, setExplainerStep] = useState<string | null>(null);
+  const explainerContext = "BACKUP_ACCOUNTS";
 
   const handleGenerate = async () => {
     if (!storage || !security) return;
@@ -30,6 +36,11 @@ export const BackupAccounts: React.FC<BackupAccountsProps> = ({ onBack }) => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleStepClick = (step: string) => {
+    setExplainerStep(step);
+    setExplainerOpen(true);
   };
 
   return (
@@ -122,7 +133,11 @@ export const BackupAccounts: React.FC<BackupAccountsProps> = ({ onBack }) => {
         </div>
       ) : (
         <div>
-          <ActionCardDisplay plan={plan} context="Backup My Accounts" />
+          <ActionCardDisplay 
+            plan={plan} 
+            context={explainerContext} 
+            onStepClick={handleStepClick} 
+          />
            <div className="mt-8 text-center">
              <button onClick={() => setPlan(null)} className="text-sm text-textSecondary hover:text-white underline">
                Start Over
@@ -130,6 +145,13 @@ export const BackupAccounts: React.FC<BackupAccountsProps> = ({ onBack }) => {
           </div>
         </div>
       )}
+
+      <StepExplainerModal
+        isOpen={explainerOpen}
+        stepText={explainerStep}
+        context={explainerContext}
+        onClose={() => setExplainerOpen(false)}
+      />
     </div>
   );
 };
