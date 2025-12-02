@@ -1,9 +1,39 @@
 import { GoogleGenAI, Type, Chat } from "@google/genai";
-import { ActionPlan, CryptoExperience, CryptoUrgency, BackupStorage, BackupSecurity } from "../types";
+import {
+  ActionPlan,
+  CryptoExperience,
+  CryptoUrgency,
+  BackupStorage,
+  BackupSecurity,
+} from "../types";
 
-// CRITICAL: Always use process.env.API_KEY for security.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-const MODEL_NAME = 'gemini-2.5-flash';
+// --- API key handling ------------------------------------------------------
+
+// Prefer Vite-style env var in browser builds.
+// In dev you can set this in a .env file as: VITE_GEMINI_API_KEY=xxxx
+const viteKey =
+  (import.meta as any).env?.VITE_GEMINI_API_KEY as string | undefined;
+
+// Fallback to process.env.API_KEY only if it's been defined via Vite's `define`
+// (in many browser builds this will just be "undefined" or empty).
+const processKey = (process.env.API_KEY as string | undefined) || undefined;
+
+const apiKey = viteKey || processKey;
+
+// Flag we can use elsewhere in the app to show/hide AI features.
+export const GEMINI_ENABLED = !!apiKey && apiKey !== "undefined";
+
+let ai: GoogleGenAI | null = null;
+
+if (GEMINI_ENABLED) {
+  ai = new GoogleGenAI({ apiKey: apiKey! });
+} else {
+  console.warn(
+    '[Self-Defi] Gemini API key missing – AI features are disabled in this build.'
+  );
+}
+
+const MODEL_NAME = "gemini-2.5-flash";
 
 // Schema definition reused for structure
 const actionPlanSchema = {
@@ -13,28 +43,47 @@ const actionPlanSchema = {
     timeframe: { type: Type.STRING },
     steps: {
       type: Type.ARRAY,
-      items: { type: Type.STRING }
+      items: { type: Type.STRING },
     },
-    notes: { type: Type.STRING }
+    notes: { type: Type.STRING },
   },
-  required: ["title", "timeframe", "steps", "notes"]
+  required: ["title", "timeframe", "steps", "notes"],
 };
 
-export const createChatSession = (context: "SECURE_CRYPTO" | "BACKUP_ACCOUNTS" | "AI_TRUST" | null): Chat => {
+function ensureAI() {
+  if (!ai) {
+    throw new Error(
+      "Gemini is not configured for this build (no API key set)."
+    );
+  }
+  return ai;
+}
+
+// ---------------------------------------------------------------------------
+
+export const createChatSession = (
+  context: "SECURE_CRYPTO" | "BACKUP_ACCOUNTS" | "AI_TRUST" | null
+): Chat => {
+  const aiClient = ensureAI();
+
   let systemContextInstructions = "";
-  
+
   if (context === "SECURE_CRYPTO") {
-    systemContextInstructions = "You are currently assisting the user on the 'Secure My Crypto' page. Focus strictly on cryptocurrency safety, self-custody, wallets, and seed phrases.";
+    systemContextInstructions =
+      "You are currently assisting the user on the 'Secure My Crypto' page. Focus strictly on cryptocurrency safety, self-custody, wallets, and seed phrases.";
   } else if (context === "BACKUP_ACCOUNTS") {
-    systemContextInstructions = "You are currently assisting the user on the 'Backup My Accounts' page. Focus strictly on password managers, 2FA, and digital hygiene.";
+    systemContextInstructions =
+      "You are currently assisting the user on the 'Backup My Accounts' page. Focus strictly on password managers, 2FA, and digital hygiene.";
   } else if (context === "AI_TRUST") {
-    systemContextInstructions = "You are currently assisting the user on the 'AI Trust Snapshot' page. Focus strictly on AI data privacy, what to paste vs what to hide, and tool safety.";
+    systemContextInstructions =
+      "You are currently assisting the user on the 'AI Trust Snapshot' page. Focus strictly on AI data privacy, what to paste vs what to hide, and tool safety.";
   } else {
-    systemContextInstructions = "You are currently on the Home page. You can help with general questions about crypto safety, backups, or AI privacy.";
+    systemContextInstructions =
+      "You are currently on the Home page. You can help with general questions about crypto safety, backups, or AI privacy.";
   }
 
-  return ai.chats.create({
-    model: 'gemini-3-pro-preview',
+  return aiClient.chats.create({
+    model: "gemini-3-pro-preview",
     config: {
       systemInstruction: `You are the "Self-Defi Security Guide" for the "Self Defi - 60 Second Starter" app.
       
@@ -47,12 +96,15 @@ export const createChatSession = (context: "SECURE_CRYPTO" | "BACKUP_ACCOUNTS" |
       3. If asked about off-topic things (cooking, sports, etc.), refuse: "I’m focused on security, backups, and AI trust..."
       4. Keep answers SHORT (2-5 sentences). Simple English. Actionable.
       5. Beginner-friendly tone. No hype.
-      `
-    }
+      `,
+    },
   });
 };
 
-export const generateCryptoPlan = async (experience: CryptoExperience, urgency: CryptoUrgency): Promise<ActionPlan> => {
+export const generateCryptoPlan = async (
+  experience: CryptoExperience,
+  urgency: CryptoUrgency
+): Promise<ActionPlan> => {
   const prompt = `
     Generate a crypto security action plan based on:
     - Experience Level: ${experience}
@@ -68,7 +120,10 @@ export const generateCryptoPlan = async (experience: CryptoExperience, urgency: 
   return await callGemini(prompt);
 };
 
-export const generateBackupPlan = async (storage: BackupStorage, security: BackupSecurity): Promise<ActionPlan> => {
+export const generateBackupPlan = async (
+  storage: BackupStorage,
+  security: BackupSecurity
+): Promise<ActionPlan> => {
   const prompt = `
     Generate a password/identity backup plan based on:
     - Current Storage: ${storage}
@@ -84,7 +139,9 @@ export const generateBackupPlan = async (storage: BackupStorage, security: Backu
   return await callGemini(prompt);
 };
 
-export const generateAiTrustSnapshot = async (toolNameOrUrl: string): Promise<ActionPlan> => {
+export const generateAiTrustSnapshot = async (
+  toolNameOrUrl: string
+): Promise<ActionPlan> => {
   const prompt = `
     Generate an AI Trust Snapshot for the tool: "${toolNameOrUrl}".
     
@@ -98,7 +155,12 @@ export const generateAiTrustSnapshot = async (toolNameOrUrl: string): Promise<Ac
   return await callGemini(prompt);
 };
 
-export const generateStepExplainer = async (stepText: string, context: string): Promise<string> => {
+export const generateStepExplainer = async (
+  stepText: string,
+  context: string
+): Promise<string> => {
+  const aiClient = ensureAI();
+
   // Map technical context keys to human-readable prompts
   let humanContext = context;
   if (context === "SECURE_CRYPTO") humanContext = "Secure My Crypto";
@@ -116,7 +178,7 @@ export const generateStepExplainer = async (stepText: string, context: string): 
   `;
 
   try {
-    const response = await ai.models.generateContent({
+    const response = await aiClient.models.generateContent({
       model: MODEL_NAME,
       contents: prompt,
     });
@@ -134,14 +196,16 @@ export const generateStepExplainer = async (stepText: string, context: string): 
 };
 
 const callGemini = async (prompt: string): Promise<ActionPlan> => {
+  const aiClient = ensureAI();
+
   try {
-    const response = await ai.models.generateContent({
+    const response = await aiClient.models.generateContent({
       model: MODEL_NAME,
       contents: prompt,
       config: {
         responseMimeType: "application/json",
-        responseSchema: actionPlanSchema
-      }
+        responseSchema: actionPlanSchema,
+      },
     });
 
     const text = response.text;
