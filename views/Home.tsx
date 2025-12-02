@@ -1,6 +1,7 @@
 import React from 'react';
 import { ViewState } from '../types';
 import { Shield, Key, Eye, ChevronRight } from 'lucide-react';
+import ExplainerVideo from '../components/ExplainerVideo';
 
 interface HomeProps {
   onNavigate: (view: ViewState) => void;
@@ -37,9 +38,12 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         Self Defi - 60 Second Starter
       </h1>
       
-      <p className="text-textSecondary text-center mb-12 max-w-xl text-lg">
+      <p className="text-textSecondary text-center mb-8 max-w-xl text-lg">
         “Three quick paths. One clear action you can take right now.”
       </p>
+
+      {/* IPFS explainer video */}
+      <ExplainerVideo />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl">
         {tiles.map((tile) => (
