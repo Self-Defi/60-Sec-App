@@ -1,4 +1,8 @@
-import { GoogleGenAI, Type, Chat } from "@google/genai";
+// services/aiService.ts (or whatever this file is named)
+
+// 🔒 Offline stub: no real Gemini calls in this build.
+// This completely removes the API key requirement so the app can run on GitHub Pages.
+
 import {
   ActionPlan,
   CryptoExperience,
@@ -7,215 +11,117 @@ import {
   BackupSecurity,
 } from "../types";
 
-// --- API key handling ------------------------------------------------------
-
-// Prefer Vite-style env var in browser builds.
-// In dev you can set this in a .env file as: VITE_GEMINI_API_KEY=xxxx
-const viteKey =
-  (import.meta as any).env?.VITE_GEMINI_API_KEY as string | undefined;
-
-// Fallback to process.env.API_KEY only if it's been defined via Vite's `define`
-// (in many browser builds this will just be "undefined" or empty).
-const processKey = (process.env.API_KEY as string | undefined) || undefined;
-
-const apiKey = viteKey || processKey;
-
-// Flag we can use elsewhere in the app to show/hide AI features.
-export const GEMINI_ENABLED = !!apiKey && apiKey !== "undefined";
-
-let ai: GoogleGenAI | null = null;
-
-if (GEMINI_ENABLED) {
-  ai = new GoogleGenAI({ apiKey: apiKey! });
-} else {
-  console.warn(
-    '[Self-Defi] Gemini API key missing – AI features are disabled in this build.'
-  );
-}
-
-const MODEL_NAME = "gemini-2.5-flash";
-
-// Schema definition reused for structure
-const actionPlanSchema = {
-  type: Type.OBJECT,
-  properties: {
-    title: { type: Type.STRING },
-    timeframe: { type: Type.STRING },
-    steps: {
-      type: Type.ARRAY,
-      items: { type: Type.STRING },
-    },
-    notes: { type: Type.STRING },
-  },
-  required: ["title", "timeframe", "steps", "notes"],
+// Fake Chat type so the rest of the app can compile.
+export type Chat = {
+  send: (message: string) => Promise<{ text: string }>;
 };
 
-function ensureAI() {
-  if (!ai) {
-    throw new Error(
-      "Gemini is not configured for this build (no API key set)."
-    );
-  }
-  return ai;
-}
+export const GEMINI_ENABLED = false;
 
-// ---------------------------------------------------------------------------
-
+// Simple stub that just echoes back a generic helper response.
 export const createChatSession = (
   context: "SECURE_CRYPTO" | "BACKUP_ACCOUNTS" | "AI_TRUST" | null
 ): Chat => {
-  const aiClient = ensureAI();
+  return {
+    async send(message: string) {
+      const scope =
+        context === "SECURE_CRYPTO"
+          ? "crypto safety"
+          : context === "BACKUP_ACCOUNTS"
+          ? "password backups"
+          : context === "AI_TRUST"
+          ? "AI tool privacy"
+          : "security basics";
 
-  let systemContextInstructions = "";
-
-  if (context === "SECURE_CRYPTO") {
-    systemContextInstructions =
-      "You are currently assisting the user on the 'Secure My Crypto' page. Focus strictly on cryptocurrency safety, self-custody, wallets, and seed phrases.";
-  } else if (context === "BACKUP_ACCOUNTS") {
-    systemContextInstructions =
-      "You are currently assisting the user on the 'Backup My Accounts' page. Focus strictly on password managers, 2FA, and digital hygiene.";
-  } else if (context === "AI_TRUST") {
-    systemContextInstructions =
-      "You are currently assisting the user on the 'AI Trust Snapshot' page. Focus strictly on AI data privacy, what to paste vs what to hide, and tool safety.";
-  } else {
-    systemContextInstructions =
-      "You are currently on the Home page. You can help with general questions about crypto safety, backups, or AI privacy.";
-  }
-
-  return aiClient.chats.create({
-    model: "gemini-3-pro-preview",
-    config: {
-      systemInstruction: `You are the "Self-Defi Security Guide" for the "Self Defi - 60 Second Starter" app.
-      
-      CONTEXT:
-      ${systemContextInstructions}
-
-      HARD RULES:
-      1. NO financial, trading, investment, tax, or legal advice. Refuse respectfully.
-      2. NEVER ask for or generate private keys, seed phrases, passwords, or personal data.
-      3. If asked about off-topic things (cooking, sports, etc.), refuse: "I’m focused on security, backups, and AI trust..."
-      4. Keep answers SHORT (2-5 sentences). Simple English. Actionable.
-      5. Beginner-friendly tone. No hype.
-      `,
+      return {
+        text:
+          `This demo build runs without a live AI backend.\n\n` +
+          `You asked about: "${message}". Here’s a safe next step in the area of ${scope}:\n` +
+          `• Pick one small action from the page (like enabling 2FA or writing down a recovery phrase) and complete it today.\n` +
+          `• Avoid sharing private keys, seed phrases, or passwords with *any* website or app.`,
+      };
     },
-  });
+  };
 };
+
+// --- Static plan generators (no network calls) -----------------------------
 
 export const generateCryptoPlan = async (
   experience: CryptoExperience,
   urgency: CryptoUrgency
 ): Promise<ActionPlan> => {
-  const prompt = `
-    Generate a crypto security action plan based on:
-    - Experience Level: ${experience}
-    - Urgency: ${urgency}
-    
-    Rules:
-    1. Title must reflect experience and urgency.
-    2. Timeframe must be a short phrase like "Do this in the next 24 hours".
-    3. Steps must be exactly 3 clear, non-technical actions the user can take without connecting a wallet or revealing keys.
-    4. Notes must be a short safety reminder about never sharing seed phrases, private keys, or passwords.
-  `;
-
-  return await callGemini(prompt);
+  return {
+    title: `Starter crypto safety plan (${experience.toLowerCase()}, ${urgency.toLowerCase()})`,
+    timeframe:
+      urgency === "IMMEDIATELY"
+        ? "Do this in the next 24 hours"
+        : urgency === "SOON"
+        ? "Do this this week"
+        : "Work through this over the next month",
+    steps: [
+      "Write down your main wallet’s recovery phrase on paper and store it somewhere only you can access (never in photos or cloud notes).",
+      "Turn on 2FA for the exchanges or apps you still use and remove any you no longer need.",
+      "List where your crypto is held today (exchanges, wallets) and mark which funds you eventually want in cold storage.",
+    ],
+    notes:
+      "Never share your recovery phrase or private keys with anyone. Any site or person asking for them is a scam.",
+  };
 };
 
 export const generateBackupPlan = async (
   storage: BackupStorage,
   security: BackupSecurity
 ): Promise<ActionPlan> => {
-  const prompt = `
-    Generate a password/identity backup plan based on:
-    - Current Storage: ${storage}
-    - Preferred Approach: ${security}
-
-    Rules:
-    1. Focus on improving password manager usage or safe backup locations.
-    2. Steps must be exactly 3 clear actions to reduce single points of failure.
-    3. Timeframe should be realistic (e.g., "This weekend").
-    4. Notes should be a safety reminder.
-  `;
-
-  return await callGemini(prompt);
+  return {
+    title: `Password & identity backup tune-up (${security.toLowerCase()})`,
+    timeframe: "Set aside 30–60 minutes this week",
+    steps: [
+      "Pick one password manager and move your most important logins (email, bank, crypto, work) into it first.",
+      "Create at least one offline backup method (printed codes in a sealed envelope or a secure notebook in a safe place).",
+      "Review accounts with weak or reused passwords and upgrade 3 of them to strong, unique passwords.",
+    ],
+    notes:
+      "Avoid keeping everything in a single place (like only browser auto-save). A password manager plus one offline backup is much safer.",
+  };
 };
 
 export const generateAiTrustSnapshot = async (
   toolNameOrUrl: string
 ): Promise<ActionPlan> => {
-  const prompt = `
-    Generate an AI Trust Snapshot for the tool: "${toolNameOrUrl}".
-    
-    Rules:
-    1. Title must be the tool name + " Trust Snapshot".
-    2. Timeframe must be "Use these rules anytime you use this tool".
-    3. Steps must be exactly 3 concrete "do / don't" style rules (e.g., what is safe to paste, what to avoid).
-    4. Notes must include a disclaimer to review the tool's own privacy policy.
-  `;
+  const label = toolNameOrUrl || "this AI tool";
 
-  return await callGemini(prompt);
+  return {
+    title: `${label} – Trust Snapshot`,
+    timeframe: "Use these rules anytime you use this tool",
+    steps: [
+      `Only paste information that you’d be comfortable sharing in a work email. Keep IDs, full addresses, and financial details out of prompts.`,
+      `Never paste recovery phrases, private keys, passwords, or full payment card numbers into ${label}.`,
+      `Check where this tool stores data (privacy policy) and avoid connecting it directly to any accounts that hold money or sensitive records unless you fully understand the risk.`,
+    ],
+    notes:
+      "This is a generic safety snapshot. Always review the tool’s own privacy policy and terms for specifics.",
+  };
 };
 
 export const generateStepExplainer = async (
   stepText: string,
   context: string
 ): Promise<string> => {
-  const aiClient = ensureAI();
+  const humanContext =
+    context === "SECURE_CRYPTO"
+      ? "Secure My Crypto"
+      : context === "BACKUP_ACCOUNTS"
+      ? "Backup My Accounts"
+      : context === "AI_TRUST"
+      ? "AI Trust Snapshot"
+      : "security basics";
 
-  // Map technical context keys to human-readable prompts
-  let humanContext = context;
-  if (context === "SECURE_CRYPTO") humanContext = "Secure My Crypto";
-  if (context === "BACKUP_ACCOUNTS") humanContext = "Backup My Accounts";
-  if (context === "AI_TRUST") humanContext = "AI Trust Snapshot";
-
-  const prompt = `
-    Context: ${humanContext}
-    Step: "${stepText}"
-
-    Explain this crypto / security / AI safety step in simple, non-technical language for a beginner. 
-    Keep it under 200 words and include 2–3 very concrete sub-actions they can perform.
-    Do not use markdown formatting like bold or headers, just plain text paragraphs.
-    Never ask for or reference private keys, seed phrases, passwords, or personal data.
-  `;
-
-  try {
-    const response = await aiClient.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-    });
-
-    const text = response.text;
-    if (!text) {
-      throw new Error("No response from Gemini");
-    }
-
-    return text.trim();
-  } catch (error) {
-    console.error("Gemini Explainer Error:", error);
-    throw new Error("Could not generate explanation.");
-  }
+  return (
+    `Context: ${humanContext}.\n\n` +
+    `Step: "${stepText}".\n\n` +
+    `In plain terms, this means: take one small, concrete action that makes it harder to lose access or get hacked. ` +
+    `For example, you might write down a recovery phrase on paper instead of leaving it in photos, add 2FA to a key account, ` +
+    `or move a risky password out of a notes app into a password manager. Avoid sharing any recovery phrases, private keys, or passwords with anyone.`
+  );
 };
 
-const callGemini = async (prompt: string): Promise<ActionPlan> => {
-  const aiClient = ensureAI();
-
-  try {
-    const response = await aiClient.models.generateContent({
-      model: MODEL_NAME,
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: actionPlanSchema,
-      },
-    });
-
-    const text = response.text;
-    if (!text) {
-      throw new Error("No response from Gemini");
-    }
-
-    return JSON.parse(text) as ActionPlan;
-  } catch (error) {
-    console.error("Gemini API Error:", error);
-    throw new Error("Failed to generate plan. Please try again.");
-  }
-};
